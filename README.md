@@ -1,0 +1,1 @@
+Custumers churn detection with classification model
