@@ -28,7 +28,7 @@ import joblib
 #Log file
 logging.basicConfig(
     filename='./logs/churn_library.log',
-    level=logging.INFO
+    level=logging.INFO,
     filemode='w',
     format='%(name)s - %(levelname)s -%(message)s'
 )
@@ -60,8 +60,8 @@ def data_spliting(df):
         validate: validation dataframe
         test test dataframe
     """
-    train,test=train_test_split(df,test_size=0.3,random_state=seed,stratify=df['Churn'])
-    test,validate=train_test_split(test,test_size=0.5,random_state=seed,stratify=test['Churn'])
+    train,test=train_test_split(df,test_size=0.3,random_state=123,stratify=df['Churn'])
+    test,validate=train_test_split(test,test_size=0.5,random_state=123,stratify=test['Churn'])
     #Saving the different data sets
     train.to_csv('./data/train.csv',index=False)
     test.to_csv('./data/test.csv',index=False)
@@ -102,7 +102,7 @@ def performs_eda(df):
             )
         else:
             if df[column_name].dtype !='O':
-                df.column_name.hist()
+                df[column_name].hist()
             else :
                 sns.countplot(data=df, x=column_name)
         plt.savefig('images/eda/'+column_name+'.jpg')
@@ -137,13 +137,16 @@ def classification_report_image(y_train,
         plt.text( 0.2, 0.3, str(report), {'fontsize':10 }, fontproperties='monospace');
         plt.axis('off')
         plt.title(title,fontweight='bold'),
-        plt.save('images/results/'+title+'.jpg')
+        plt.savefig('images/results/'+title+'.jpg')
         
 
+#Function to covert TotalCharges columns to numérical
+def convert_totalcharges(X):
+    #X: dataframe
+    Z=X.copy()
+    Z['TotalCharges']=pd.to_numeric(Z['TotalCharges'],errors='coerce')
+    return Z.values #return a numpy arrays
 
-def train_model():
-    
-    return
 
 def build_pipline():
     """
@@ -193,10 +196,67 @@ def build_pipline():
             ('logreg',LogisticRegression(random_state=123,
                                          solver='newton-cg',
                                          max_iter=2000,
-                                         c=5.0,
+                                         C=5.0,
                                          penalty='l2'))]
     )
     
     return pipe_model
 
-def 
+def train_models(X_train,X_val, y_train, y_val):
+    """
+    train and  store models results : image + scores
+    inputs : 
+            X_train: features of training data
+            X_val: features of validation data
+            y_train: labels of training data
+            y_val: labels  of validation data
+    outputs :
+        None
+    """
+    # model training
+    model=build_pipline()
+    
+
+    model.fit(X_train,y_train)
+    
+    #prediction
+    y_train_pred=model.predict(X_train)
+    y_val_pred=model.predict(X_val)
+
+    #ROC curve image
+    c_plot=RocCurveDisplay.from_estimator(model,X_val,y_val)
+    plt.savefig('images/results/roc_curve.jpg')
+    plt.close()
+    #classification report images
+    classification_report_image(y_train,
+                                y_train_pred,
+                                y_val,
+                                y_val_pred)
+    
+    #save model
+    joblib.dump(model,'./models/logreg_model.pkl')
+    
+def main():
+    logging.info('Importing data...')
+    raw_data=import_data('./data/data.csv')
+    logging.info('Data imported with SUCESS')
+    
+    logging.info('Data Spliting ...')
+    train_data, Xtrain, ytrain, Xval, yval=data_spliting(raw_data)
+    logging.info('Data Spliting : SUCESS')
+    
+    logging.info('Exploratory analysis ...')
+    performs_eda(train_data)
+    logging.info('Exploratory analysis : SUCESS')
+    
+    logging.info('Model training ...')
+    train_models( Xtrain, Xval, ytrain, yval)
+    logging.info('Model training : SUCESS')
+        
+
+        
+if __name__=='__main__':
+    print('Runing ......')
+    main()
+    print('Runed with sucess')
+    
